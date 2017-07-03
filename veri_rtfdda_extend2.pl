@@ -57,6 +57,7 @@ if ( -e  $GSJOBDIR."/verifyinput.pl" )
 ($MY_GFS, $MY_NML) = split(/_/, $MEMBER);
 ($OBS_GFS, $OBS_NML) = split(/_/, $OBS_MEMBER);
 if ( $MEMBER eq $OBS_MEMBER ){
+    print("to replace qc_value for $OBS_MEMBER");
     system("$GSJOBDIR/run_qcout.replace_qc_value.csh $HOMEDIR $GMID $CYCLE $OBS_GFS");
 }
 
@@ -168,10 +169,9 @@ system("mkdir -p $SAVE_DIR_SFC/{final,fcst} $VERI_DIR");
 if ($VERI_ARCHIVE_ROOT) {
    system("mkdir -p $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc/{final,fcst}");
 }
-print("veri_dir=$VERI_DIR\n");
 chdir $VERI_DIR;
 
-print "        Cycle = $this_cycle  at ", &ctime(time);
+print "Cycle = $this_cycle  at ", &ctime(time);
 
 if ( ! -e "$RUNDIR/${this_cycle}" ) {
    print "   \n The cycle ${this_cycle} does not exist \n. Something wrong. -- Exit.";
@@ -182,14 +182,12 @@ my $date=$this_cycle;
 
 print "Cycling interval is $CYC_INT\n";
 
-if ($VERI_LENGTH) {
-   print "VERIFY $VERI_LENGTH hours of forecast!\n";
-} else {
+if (! $VERI_LENGTH) {
    $VERI_LENGTH = 12;
 }
+print "VERIFY $VERI_LENGTH hours of forecast!\n";
 
 my $numOldCycles = $VERI_LENGTH/$CYC_INT;
-
 my $oldestCycle = date_retro($date,$numOldCycles*$CYC_INT);
 
 my $year = substr $date, 0, 4;
@@ -203,9 +201,9 @@ foreach $i (1..$numOldCycles) {
   $hrsRetro = $i*$CYC_INT;
   push(@old_cycles,date_retro($date,$hrsRetro));
   push(@old_cycles1,date_retro($date1,6));
-	if( $i < 2 ) {
-         push(@old_cycles_q,date_retro($date,$hrsRetro));
-	}
+  if( $i <= 1 ) {
+      push(@old_cycles_q,date_retro($date,$hrsRetro));
+  }
 }
 
 if ($VERI_LIST) {
@@ -222,9 +220,6 @@ if ($VERI_LIST) {
 if ($VERI_SFC) {
 
   print "\ Start sfc stats generation \n";
-  
-
-
   @sfc_pairs_files=save_sfc();
   exit(-1);
 
@@ -310,7 +305,7 @@ if ($VERI_UPR) {
       system("touch $UPR_STATS_TMP/upr_tables/$valid_time/$html_doc");
       print "cat $html_table >> $UPR_STATS_TMP/upr_tables/$valid_time/$html_doc\n";
       system("cat $html_table >> $UPR_STATS_TMP/upr_tables/$valid_time/$html_doc");
-	unlink $html_table;
+    unlink $html_table;
       &html_create_upr;
        #system("touch $UPR_STATS_TMP/$date/$upr_dir/$html_doc");
 #        system("mv $html_table $UPR_STATS_TMP/upr_tables/$cyc/$html_doc");
@@ -510,95 +505,52 @@ sub save_sfc {
   system("rm -rf qc_analysis.out");
   my $date_3 = date_retro($date,6);
   my $date_3 = date_retro($date_3,$CYC_INT);
-my $year3 = substr $date_3, 0, 4;
-my $mons3 = substr $date_3, 4, 2;
-my $days3 = substr $date_3, 6, 2;
-my $hour3 = substr $date_3, 8, 2;
-my $yeare = substr $date, 0, 4;
-my $monse = substr $date, 4, 2;
-my $dayse = substr $date, 6, 2;
-my $houre = substr $date, 8, 2;
-my $date_3_str="${year3}-${mons3}-${days3}_${hour3}";
-my $date_e_str="${yeare}-${monse}-${dayse}_${houre}";
-
-  foreach $cycle (sort @old_cycles_q) {
-#    system("ln -sf $OBSDIR/$cycle/RAP_RTFDDA/qc_out* .");
-# lpan
- @files = `ls -t -1 -r $OBSDIR/$cycle/RAP_RTFDDA/qc_out*`;
-	print("OBSDIR=$OBSDIR\n");
-
-     foreach $file0 (sort @files) {
-
-        my $dirname= dirname($file0);
-        my $filename= basename($file0);
-
-
+  my $year3 = substr $date_3, 0, 4;
+  my $mons3 = substr $date_3, 4, 2;
+  my $days3 = substr $date_3, 6, 2;
+  my $hour3 = substr $date_3, 8, 2;
+  my $yeare = substr $date, 0, 4;
+  my $monse = substr $date, 4, 2;
+  my $dayse = substr $date, 6, 2;
+  my $houre = substr $date, 8, 2;
+  my $date_3_str="${year3}-${mons3}-${days3}_${hour3}";
+  my $date_e_str="${yeare}-${monse}-${dayse}_${houre}";
+  #obs process
+  foreach $cycle (sort (@old_cycles_q,$date)) {
+    @files = `ls -t -1 -r $OBSDIR/$cycle/RAP_RTFDDA/qc_out*`;
+    print("OBSDIR=$OBSDIR\n");
+    foreach $file0 (sort @files) {
+       my $dirname= dirname($file0);
+       my $filename= basename($file0);
        $file2 = substr($filename,0,31);
        $file1 = $dirname. "/" . $file2;
-      $filesize1 = (-s $file1);
-      $filesize2 = (-s $file2);
-
-     print("file1=$file1\n");
-     print("file2=$file2\n");
-     print("size1=$filesize1\n");
-     print("size2=$filesize2\n");
-
-     if(!-e $file2 || $filesize1 >= $filesize2 ){
-     unlink ("$file2");
-         if($filesize1 > 10000000) {
-     system("ln -s $file1 $file2");
-             print("used file1 szie:$filesize1\n");
-
-                  }
-
-     }
-
-     }
-
-  }
-#  system("ln -sf $OBSDIR/$date/RAP_RTFDDA/qc_out* .");
- @files1 = `ls -t -1 -r $OBSDIR/$date/RAP_RTFDDA/qc_out*`;
-
-     foreach $file0 (sort @files1) {
-        my $dirname= dirname($file0);
-        my $filename= basename($file0);
-
-
-       $file2 = substr($filename,0,31);
-       $file1 = $dirname. "/" . $file2;
-      $filesize1 = (-s $file1);
-      $filesize2 = (-s $file2);
-
-     print("$file1\n");
-     print("$file2\n");
-     print("size1=$filesize1\n");
-     print("size2=$filesize2\n");
-
-     if(!-e $file2 || $filesize1 >= $filesize2 ){
-     unlink ("$file2");
-         if($filesize1 > 10000000) {
-     system("ln -s $file1 $file2");
-             print("used file1 szie:$filesize1\n");
-
-                  }
-
-     }
-  system("cat qc_out_* > qc_out.dat");
+       $filesize1 = (-s $file1);
+       $filesize2 = (-s $file2);
+       #print("file1=$file1\n");
+       #print("file2=$file2\n");
+       #print("size1=$filesize1\n");
+       #print("size2=$filesize2\n");
+       if(!-e $file2 || $filesize1 >= $filesize2 ){
+          unlink ("$file2");
+          if($filesize1 > 10000000) {
+             system("ln -s $file1 $file2");
+             #print("used file1 szie:$filesize1\n");
+          }
+       }
+    }
+    if ( $date eq $cycle) {
+        system("cat qc_out_* > qc_out.dat");
         system ("cat $file2 >> qc_analysis.out");
-
-     }
-
-
+    }
+  } #foreach cycle
   unlink 'surface_obs.cleanup' if(-e 'surface_obs.cleanup');
   system("$EXECUTABLE_ARCHIVE/RT_all.obs_cleanup.sfc.pl -f qc_out.dat ");
-#  system("$EXECUTABLE_ARCHIVE/RT_all.obs_cleanup.sfc_cma.pl -f qc_out.dat ");
   if (defined($ADD_STID) && $ADD_STID > 0) {
      system("$EXECUTABLE_ARCHIVE/v_rewrite_obs.exe surface_obs.cleanup ");
   } else {
      system("$EXECUTABLE_ARCHIVE/v_rewrite_obs.exe surface_obs.cleanup");
   }
   system("sort -k1 fort.31 > obs.dat");
-
   if($VERI_INTERM) {
     $VERI_DIR_INTERM = "$RUNDIR/verify_interm";
     system("mkdir -p $VERI_DIR_INTERM");
@@ -607,15 +559,11 @@ my $date_e_str="${yeare}-${monse}-${dayse}_${houre}";
   }
 
 ### Forecast!
-
-### Forecast! 
   $cnt_cycle = 0;
   foreach $oldCycle (@old_cycles) {
-
     $cnt_cycle += 1;
     $hour_ago = $cnt_cycle * $CYC_INT; 
     print "Cycle $hour_ago hours ago: $oldCycle \n";
-    
     #ln or cp aux files
     $dir_wrfout_aux = "$VERI_WORK_DIR/wrfdata/$oldCycle";
     system("test -d $dir_wrfout_aux || mkdir -p $dir_wrfout_aux");
@@ -625,10 +573,9 @@ my $date_e_str="${yeare}-${monse}-${dayse}_${houre}";
     }
     $end_hour = (&tool_date12_diff_minutes("${date}00", "${oldCycle}00")) / 60;
     for $d (1..$NDOM) { 
-        print "$oldCycle, $start_hour, $end_hour \n";
         &lncp_aux_file($oldCycle, $start_hour, 1, $end_hour, $d, $dir_wrfout_aux); 
     }
-    
+    #get ds & dates 
     @ds=();
     @dates=();
     foreach $wrfout ($dir_wrfout_aux/aux*00:00 $dir_wrfout_aux/wrfout*P+FCST>) {
@@ -637,99 +584,76 @@ my $date_e_str="${yeare}-${monse}-${dayse}_${houre}";
        $d=$1;
        $dateString=$2;
        $dPush=check_element(\@ds,$d);
-     	if(($dateString ge $date_3_str) and ( $dateString le $date_e_str)){
-     	print "dateString=$dateString; date_3_str=$date_3_str $date_e_str\n";
-      $filel = substr($file0,0,99);
-#	print("$file1\n");
-      $file2 = substr($file1,68,31);
-#	print("$file2\n");
-
-         $datePush=check_element(\@dates,$dateString);
-         push(@ds,$d) if($dPush == 1);
-         push(@dates,$dateString) if($datePush == 1);
-	}
+       if(($dateString ge $date_3_str) and ( $dateString le $date_e_str)){
+          print "dateString=$dateString; date_3_str=$date_3_str $date_e_str\n";
+          $filel = substr($file0,0,99);
+          $file2 = substr($file1,68,31);
+#   print("$file2\n");
+          $datePush=check_element(\@dates,$dateString);
+          push(@ds,$d) if($dPush == 1);
+          push(@dates,$dateString) if($datePush == 1);
+       }
     }
-
+    #get pair files
     $fn = $oldCycle . "_veri_dat_${MEMBER}_P+FCST";
     $fn1 = $oldCycle . "_veri_dat_${MEMBER}_P+FCST_".$date_3;
-
     print "P+FCST: dates = @dates ; ds = @ds\n";
-    if(-e $new_dir) {
-      foreach $datetime (@dates) {
+    foreach $datetime (@dates) {
         system("rm -f pairs_domain*");
         foreach $d (@ds) {
-         #   $wrf="$new_dir/wrfout_d${d}_${datetime}:00:00.${MEMBER}_P+FCST";
-         #   $wrf1="$new_dir/WRF_P/auxhist3_d${d}_${datetime}:00:00";
             $wrf1 = "$dir_wrfout_aux/auxhist3_d${d}_${datetime}:00:00";
             $wrf = "$dir_wrfout_aux/wrfout_d${d}_${datetime}:00:00.${MEMBER}_P+FCST";
             if (defined($ADD_STID) && $ADD_STID > 0) {
-               system("$EXECUTABLE_ARCHIVE/v_wrf_sfc_interp.exe $wrf -add_stid ") if((-e $wrf) && ($d ne "01") && ( ! -e $wrf1) ); 
-	       system("~/bin/v_wrf_sfc_interp_aux3.exe $wrf1 -add_stid ") if( ($d ne "01") && (-e $wrf1 ));
-            print "\n process $wrf1 \n" if( -e $wrf1);
-            print "\n process $wrf \n" if ((!-e $wrf1) && (-e $wrf));
-
+                if( -e $wrf1 ) {
+                    print "\n process $wrf1 \n";
+                    system("~/bin/v_wrf_sfc_interp_aux3.exe $wrf1 -add_stid ");
+                }elsif ( -e $wrf ) {
+                    print "\n process $wrf \n";
+                    system("$EXECUTABLE_ARCHIVE/v_wrf_sfc_interp.exe $wrf -add_stid ");
+                }
             } else {
-               system("$EXECUTABLE_ARCHIVE/v_wrf_sfc_interp.exe $wrf ") if((-e $wrf) && ($d ne "01") && (! -e $wrf1) ); 
-               system("~/bin/v_wrf_sfc_interp_aux3.exe $wrf1  ") if(($d ne "01") && (-e $wrf1 ));
-#               system("~/bin/v_wrf_sfc_interp_aux3.exe $wrf1  ") if( ($d ne "01") && (-e $wrf1 ));
-            print "\n process $wrf1 \n" if (-e $wrf1);
-            print "\n process $wrf \n" if (( -e $wrf) && (! -e $wrf1));
-
+                if( -e $wrf1 ) {
+                    print "\n process $wrf1 \n";
+                    system("$EXECUTABLE_ARCHIVE/v_wrf_sfc_interp.exe $wrf ");
+                }elsif ( -e $wrf) {
+                    print "\n process $wrf \n";
+                    system("~/bin/v_wrf_sfc_interp_aux3.exe $wrf1  ");
+                }
             }
         }
-        foreach $d (@ds) {
-            $wrf="$dir_wrfout_aux/wrfout_d${d}_${datetime}:00:00.${MEMBER}_P+FCST";
-            $wrf1="$dir_wrfout_aux/auxhist3_d${d}_${datetime}:00:00";
-            if (defined($ADD_STID) && $ADD_STID > 0) {
-               system("$EXECUTABLE_ARCHIVE/v_wrf_sfc_interp.exe $wrf -add_stid") if((-e $wrf) && ($d eq "01") && (! -e $wrf1)); 
-	       system("~/bin/v_wrf_sfc_interp_aux3.exe $wrf1 -add_stid") if( ($d eq "01") && (-e $wrf1 ));
-            print "\n process $wrf1 \n" if( -e $wrf1);
-            print "\n process $wrf \n" if ((-e $wrf) && (! -e $wrf1));
-            } else {
-               system("$EXECUTABLE_ARCHIVE/v_wrf_sfc_interp.exe $wrf") if((-e $wrf) && ($d eq "01") && (! -e $wrf1) ); 
-               system("~/bin/v_wrf_sfc_interp_aux3.exe $wrf1 ") if( ($d eq "01") && (-e $wrf1 ));
-            print "\n process $wrf1 \n" if (-e $wrf1);
-            print "\n process $wrf \n" if (( -e $wrf) && (! -e $wrf1));
-            }
-        }
-	sleep 10;
-
+        sleep 10;
         if (defined($ADD_STID) && $ADD_STID > 0) {
-           system("$EXECUTABLE_ARCHIVE/v_merge_pairs.pl pairs_domain* -add_stid");
+            system("$EXECUTABLE_ARCHIVE/v_merge_pairs.pl pairs_domain* -add_stid");
         } else {
            system("$EXECUTABLE_ARCHIVE/v_merge_pairs.pl pairs_domain*");
         }
         system("cat pairs_domain*.out >> $fn1");
-      }  # end foreach $date
-    }  # if $new_dir exists
-
-##  system("rsync -e 'ssh -i $KEY' -avzC $fn $WebServer:$REMOTE_DIR_SFC/fcst/$fn");
+    }  # end foreach $date
     if ($VERI_ARCHIVE_ROOT) {
-       print "cp $fn $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc/fcst/$fn\n";
-       system("cp $fn $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc/fcst/$fn");
-       print "cp $fn1 $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc/fcst/$fn1\n";
-       system("cp $fn1 $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc/fcst/$fn1");
-    system("cat $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc//fcst/$fn1 >> $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc//fcst/$fn");
+        print "cp $fn $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc/fcst/$fn\n";
+        system("cp $fn $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc/fcst/$fn");
+        print "cp $fn1 $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc/fcst/$fn1\n";
+        system("cp $fn1 $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc/fcst/$fn1");
+        system("cat $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc//fcst/$fn1 >> $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc//fcst/$fn");
     }
+    #mv to veri_dat
     system("mv $fn1 $SAVE_DIR_SFC/fcst/$fn1");
     system("cat $SAVE_DIR_SFC/fcst/$fn1 >> $SAVE_DIR_SFC/fcst/$fn");
-        if (defined($ADD_STID) && $ADD_STID > 0) {
-           system("$EXECUTABLE_ARCHIVE/v_merge_pairs1.pl  $SAVE_DIR_SFC/fcst/$fn -add_stid");
-        } else {
-           system("$EXECUTABLE_ARCHIVE/v_merge_pairs1.pl  $SAVE_DIR_SFC/fcst/$fn");
-        }
-
+    if (defined($ADD_STID) && $ADD_STID > 0) {
+        system("$EXECUTABLE_ARCHIVE/v_merge_pairs1.pl  $SAVE_DIR_SFC/fcst/$fn -add_stid");
+    } else {
+        system("$EXECUTABLE_ARCHIVE/v_merge_pairs1.pl  $SAVE_DIR_SFC/fcst/$fn");
+    }
     system("rm -rf pairs_*");
+    @files=(); #ss
     unshift(@files,"$SAVE_DIR_SFC/fcst/$fn");
-
     print "   Finish fcst_sfc of $oldCycle cycle at ", &ctime(time);
-  }
+  } #foreach cycle
 
 ### Final!
-
   @ds=();
   @dates=();
-  foreach $wrfout (<$new_dir/WRF_P/aux*00:00 $RUNDIR/$date/wrfout*F>) { #ss, should be WRF_F?
+  foreach $wrfout (<$RUNDIR/$date/WRF_F/aux*00:00 $RUNDIR/$date/wrfout*F>) { 
      chomp($wrfout);
      $wrfout=~ /d(\d+)_(\d{4}-\d{2}-\d{2}_\d{2})/;
      $d=$1;
@@ -739,48 +663,46 @@ my $date_e_str="${yeare}-${monse}-${dayse}_${houre}";
      push(@ds,$d) if($dPush == 1);
      push(@dates,$dateString) if($datePush == 1);
   }
-
   $fn=$date . "_veri_dat_${MEMBER}_F";
-
   foreach $datetime (@dates) {
     system("rm -f pairs_domain*");
     foreach $d (@ds) {
-       if($MMOUTDIR eq $RUNDIR) {
-         $wrf="$RUNDIR/$date/wrfout_d${d}_${datetime}:00:00.${MEMBER}_F";
-         $wrf1="$RUNDIR/$date/WRF_F/auxhist3_d${d}_${datetime}:00:00";
-       } else {
-         $wrf="$MMOUTDIR/wrfout_d${d}_${datetime}:00:00.${MEMBER}_F";
-         $wrf1="$MMOUTDIR/WRF_F/auxhist3_d${d}_${datetime}:00:00";
-       }
-       print "\n process $fn \n";
+       $wrf="$RUNDIR/$date/wrfout_d${d}_${datetime}:00:00.${MEMBER}_F";
+       $wrf1="$RUNDIR/$date/WRF_F/auxhist3_d${d}_${datetime}:00:00";
        if (defined($ADD_STID) && $ADD_STID > 0) {
-          system("$EXECUTABLE_ARCHIVE/v_wrf_sfc_interp.exe $wrf -add_stid") if( (-e $wrf) && (! -e $wrf1) );
-	  system("~/bin/v_wrf_sfc_interp_aux3.exe $wrf1 -add_stid") if(($d eq "01") && (-e $wrf1 ));
-       } else {
-          system("$EXECUTABLE_ARCHIVE/v_wrf_sfc_interp.exe $wrf") if( (-e $wrf ) && (! -e $wrf1));
-          system("~/bin/v_wrf_sfc_interp_aux3.exe $wrf1 ") if((-e $wrf1 ));
+          if( -e $wrf1 ) {
+             print "\n process $wrf1 \n";
+             system("~/bin/v_wrf_sfc_interp_aux3.exe $wrf1 -add_stid ");
+          }elsif ( -e $wrf ) {
+             print "\n process $wrf \n";
+             system("$EXECUTABLE_ARCHIVE/v_wrf_sfc_interp.exe $wrf -add_stid ");
+          }
+       } else{
+          if( -e $wrf1 ) {
+             print "\n process $wrf1 \n";
+             system("~/bin/v_wrf_sfc_interp_aux3.exe $wrf1 -add_stid ");
+          }elsif ( -e $wrf ) {
+             print "\n process $wrf \n";
+             system("$EXECUTABLE_ARCHIVE/v_wrf_sfc_interp.exe $wrf -add_stid ");
+          }
        }
     }
-
     if (defined($ADD_STID) && $ADD_STID > 0) {
        system("$EXECUTABLE_ARCHIVE/v_merge_pairs.pl pairs_domain* -add_stid");
     } else {
        system("$EXECUTABLE_ARCHIVE/v_merge_pairs.pl pairs_domain*");
     }
     system("cat pairs_domain*.out >> $fn");
-  }  # end foreach $date
-
+  }  # foreach $date
 ##system("rsync -e 'ssh -i $KEY' -avzC $fn $WebServer:$REMOTE_DIR_SFC/final/$fn");
   if ($VERI_ARCHIVE_ROOT) {
      print "cp $fn $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc/final/.\n";
      system("cp $fn $VERI_ARCHIVE_ROOT/$ENV{LOGNAME}/$GSJOBID/veri_dat/sfc/final/.");
   }
   system("mv $fn $SAVE_DIR_SFC/final/.");
-
   system("rm -rf pairs_*");
   print "   Finish Final-fdda_sfc of $date cycle  at ", &ctime(time);
   unshift(@files,"$SAVE_DIR_SFC/final/$fn");
-
   return @files;
 }
 
@@ -951,8 +873,8 @@ sub stats {
           $hour=int($hourmin/100);
           $minute=$hourmin-$hour*100;
 
-	  $this_date=$year*100000000+$month*1000000+$day*10000+$hour*100+$minute;
-	  $date=nearest_hour($this_date);
+      $this_date=$year*100000000+$month*1000000+$day*10000+$hour*100+$minute;
+      $date=nearest_hour($this_date);
 
           $date_min=date_retro($date,1) if($count == 1);
 
@@ -1644,12 +1566,12 @@ sub stats_plot {
   $out_gif=$outf;
   $out_gif=~ s/ps$/gif/;
 
-#	system("pwd");
-#	system ("ls *.ps");
-#	system ("ls $outf\n");
+#   system("pwd");
+#   system ("ls *.ps");
+#   system ("ls $outf\n");
   system("convert -trim +repage -density 112 $outf $out_gif");
-#	system ("ls $out_gif");
-#	system("cp $out_gif .");
+#   system ("ls $out_gif");
+#   system("cp $out_gif .");
 
   unlink $outf;  ## needs to be uncommented out later!
 
